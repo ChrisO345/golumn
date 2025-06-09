@@ -1,4 +1,4 @@
-package golumn
+package dfio
 
 import (
 	"testing"

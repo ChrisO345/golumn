@@ -100,7 +100,7 @@ func (df DataFrame) String() string {
 	sb.WriteString(strings.Repeat(" ", maxIndexWidth))
 	sb.WriteString("  ")
 	for j, col := range df.columns {
-		sb.WriteString(padRight(col.Name, colWidths[j]))
+		sb.WriteString(padLeft(col.Name, colWidths[j]))
 		if j < df.ncols-1 {
 			sb.WriteString("  ")
 		}
@@ -114,7 +114,7 @@ func (df DataFrame) String() string {
 
 		for j, col := range df.columns {
 			val := fmt.Sprint(col.Val(i))
-			sb.WriteString(padRight(val, colWidths[j]))
+			sb.WriteString(padLeft(val, colWidths[j]))
 			if j < df.ncols-1 {
 				sb.WriteString("  ")
 			}
@@ -377,4 +377,17 @@ func (df *DataFrame) Drop(name string) series.Series {
 		}
 	}
 	panic(fmt.Errorf("column %v not found", name))
+}
+
+// Filter returns a new DataFrame with rows that match the specified condition.
+func (df DataFrame) Filter(condition func(row Row) bool) DataFrame {
+	var s []Row
+	for i := range df.nrows {
+		row := Row{parent: &df, index: i}
+		if condition(row) {
+			s = append(s, row)
+		}
+	}
+
+	return JoinRows(s)
 }

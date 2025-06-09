@@ -1,7 +1,6 @@
 package golumn
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/chriso345/golumn/series"
@@ -18,12 +17,6 @@ func TestDataFrame_New_Int(t *testing.T) {
 	if df.String() != expected {
 		t.Errorf("Expected:\n%v\nGot:\n%v", expected, df.String())
 	}
-
-	// Expected:
-	//	   Integers1  Integers2
-	//	0          1          4
-	//	1          2          5
-	//	2          3          6
 }
 
 func TestDataFrame_New_Float(t *testing.T) {
@@ -255,20 +248,20 @@ func TestDataFrame_Drop(t *testing.T) {
 	}
 }
 
-func TestDataFrame_README(t *testing.T) {
-	// Create a new DataFrame
+func TestDataFrame_Filter(t *testing.T) {
+	expected := "   Integers  Floats\n0         1     4.4\n1         2     5.5"
 
 	df := New(
-		series.New([]string{"Alice", "Bob", "Charlie"}, series.String, "Name"),
-		series.New([]int{25, 30, 35}, series.Int, "Age"),
+		series.New([]int{1, 2, 3}, series.Int, "Integers"),
+		series.New([]float64{4.4, 5.5, 6.6}, series.Float, "Floats"),
 	)
 
-	// Print the DataFrame
-	fmt.Println(df)
+	filtered := df.Filter(func(row Row) bool {
+		keep := row.At(0).(int)
+		return keep < 3
+	})
 
-	// Add a new column
-	df.Append(series.New([]string{"New York", "Los Angeles", "Chicago"}, series.String, "City"))
-
-	// Print the updated DataFrame
-	fmt.Println(df)
+	if filtered.String() != expected {
+		t.Errorf("Expected:\n%v\nGot:\n%v", expected, filtered.String())
+	}
 }

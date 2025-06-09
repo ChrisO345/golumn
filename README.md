@@ -40,18 +40,26 @@ import (
 func main() {
 	// Create a new DataFrame
 	df := golumn.New(
-		golumn.series.New([]string{"Alice", "Bob", "Charlie"}, golumn.series.String, "Name"),
-		golumn.series.New([]int{25, 30, 35}, golumn.series.Int, "Age"),
+		series.New([]string{"Alice", "Bob", "Charlie"}, series.String, "Name"),
+		series.New([]int{25, 30, 35}, series.Int, "Age"),
 	)
 
 	// Print the DataFrame
 	fmt.Println(df)
 
 	// Add a new column
-	df.Append(golumn.series.New([]string{"New York", "Los Angeles", "Chicago"}, golumn.series.String, "City"))
+	df.Append(series.New([]string{"New York", "Los Angeles", "Chicago"}, series.String, "City"))
 
 	// Print the updated DataFrame
 	fmt.Println(df)
+
+	// Filter where Age is greater than 28
+	filtered := df.Filter(func(row golumn.Row) bool {
+		return row.Get("Age").(int) > 28
+	})
+
+	// Print the filtered DataFrame
+	fmt.Println(filtered)
 }
 ```
 
@@ -62,7 +70,7 @@ func main() {
 * **`golumn/series`**
   Core implementation of the `Series` type — a one-dimensional, type-safe, columnar data structure.
 
-* **`golumn/io`** *(planned)*
+* **`golumn/dfio`**
   I/O utilities for loading and saving `DataFrame`s and `Series` in formats like CSV and JSON.
 
 * **`golumn/math`** *(planned)*

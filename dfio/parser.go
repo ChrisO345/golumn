@@ -1,9 +1,10 @@
-package golumn
+package dfio
 
 import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"github.com/chriso345/golumn"
 	"github.com/chriso345/golumn/series"
 	"io"
 	"os"
@@ -24,7 +25,7 @@ var defaultCSVSettings = CSVSettings{
 }
 
 // FromCSV reads a CSV file and returns a DataFrame
-func FromCSV(path string, settings ...CSVSettings) *DataFrame {
+func FromCSV(path string, settings ...CSVSettings) *golumn.DataFrame {
 	if len(settings) == 0 {
 		settings = append(settings, defaultCSVSettings)
 	} else if len(settings) > 1 {
@@ -91,7 +92,7 @@ func FromCSV(path string, settings ...CSVSettings) *DataFrame {
 		}
 	}
 
-	df := New(se...)
+	df := golumn.New(se...)
 	return &df
 }
 

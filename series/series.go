@@ -42,6 +42,30 @@ func (i intElements) Values() []any { // TODO: improve the way that this is impl
 	return v
 }
 
+// AsInt converts an Element to an int, returning false if the conversion is not possible
+func AsInt(e Element) (int, bool) {
+	if e.IsNA() {
+		return 0, false
+	}
+
+	switch v := e.Get().(type) {
+	case int:
+		return v, true
+	case float64:
+		if v == float64(int(v)) {
+			return int(v), true
+		}
+		return 0, false
+	case bool:
+		if v {
+			return 1, true
+		}
+		return 0, true
+	default:
+		return 0, false
+	}
+}
+
 // floatElement is the implementation of the Element interface for float types
 type floatElements []floatElement
 
@@ -53,6 +77,22 @@ func (f floatElements) Values() []any {
 		v[j] = e.e
 	}
 	return v
+}
+
+// AsFloat converts an Element to a float64, returning false if the conversion is not possible
+func AsFloat(e Element) (float64, bool) {
+	if e.IsNA() {
+		return 0, false
+	}
+
+	switch v := e.Get().(type) {
+	case float64:
+		return v, true
+	case int:
+		return float64(v), true
+	default:
+		return 0, false
+	}
 }
 
 // booleanElements is the implementation of the Element interface for float types
@@ -68,6 +108,27 @@ func (b booleanElements) Values() []any {
 	return v
 }
 
+// AsBool converts an Element to a bool, returning false if the conversion is not possible
+func AsBool(e Element) (bool, bool) {
+	if e.IsNA() {
+		return false, false
+	}
+
+	switch v := e.Get().(type) {
+	case bool:
+		return v, true
+	case int:
+		return v != 0, true
+	case float64:
+		if v == 0.0 {
+			return false, true
+		}
+		return true, true
+	default:
+		return false, false
+	}
+}
+
 // stringElements is the implementation of the Element interface for string types
 type stringElements []stringElement
 
@@ -79,6 +140,25 @@ func (s stringElements) Values() []any {
 		v[j] = e.e
 	}
 	return v
+}
+
+// AsString converts an Element to a string, returning false if the conversion is not possible
+func AsString(e Element) (string, bool) {
+	if e.IsNA() {
+		return "", false
+	}
+	switch v := e.Get().(type) {
+	case string:
+		return v, true
+	case int:
+		return fmt.Sprint(v), true
+	case float64:
+		return fmt.Sprintf("%f", v), true
+	case bool:
+		return fmt.Sprintf("%t", v), true
+	default:
+		return "", false
+	}
 }
 
 // Type defines the type of the series
@@ -145,7 +225,7 @@ func New(v any, t Type, name string) Series {
 	case []rune:
 		panic("not implemented")
 	default:
-		panic("unsupported type")
+		panic(fmt.Sprintf("unsupported type, %T", v_))
 	}
 
 	return s
