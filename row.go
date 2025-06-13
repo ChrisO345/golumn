@@ -34,6 +34,18 @@ func (row Row) Get(name string) any {
 	return col.Val(row.index)
 }
 
+// Set sets the value at the specified column name
+func (row Row) Set(name string, value any) {
+	col := row.parent.Column(name)
+	if col == nil {
+		panic(fmt.Errorf("column %s not found", name))
+	}
+	if col.Type() != series.InferType(value) {
+		panic(fmt.Errorf("type mismatch: expected %v, got %T", col.Type(), value))
+	}
+	col.Elem(row.index).Set(value)
+}
+
 // JoinRows creates a DataFrame from a slice of Row.
 func JoinRows(rows []Row) DataFrame {
 	if len(rows) == 0 {

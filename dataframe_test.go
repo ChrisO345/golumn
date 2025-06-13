@@ -265,3 +265,47 @@ func TestDataFrame_Filter(t *testing.T) {
 		t.Errorf("Expected:\n%v\nGot:\n%v", expected, filtered.String())
 	}
 }
+
+func TestDataFrame_Apply(t *testing.T) {
+	expected := "   Integers  Floats\n0         2     8.8\n1         4      11\n2         6    13.2"
+
+	df := New(
+		series.New([]int{1, 2, 3}, series.Int, "Integers"),
+		series.New([]float64{4.4, 5.5, 6.6}, series.Float, "Floats"),
+	)
+
+	applied := df.Apply(func(row *Row) {
+		row.Set("Integers", row.At(0).(int)*2)
+		row.Set("Floats", row.At(1).(float64)*2)
+	})
+
+	if applied.String() != expected {
+		t.Errorf("Expected:\n%v\nGot:\n%v", expected, applied.String())
+	}
+}
+
+func TestDataFrame_Apply_Dynamic(t *testing.T) {
+	expected := "   Integers  Floats  Strings\n0         2     8.8    Hello\n1         4      11    World\n2         6    13.2   Golumn"
+
+	df := New(
+		series.New([]int{1, 2, 3}, series.Int, "Integers"),
+		series.New([]float64{4.4, 5.5, 6.6}, series.Float, "Floats"),
+		series.New([]string{"Hello", "World", "Golumn"}, series.String, "Strings"),
+	)
+
+	applied := df.Apply(func(row *Row) {
+		for col := range df.Columns() {
+			switch df.Columns()[col].Type() {
+			case series.Int:
+				row.Set(df.Columns()[col].Name, row.At(col).(int)*2)
+			case series.Float:
+				row.Set(df.Columns()[col].Name, row.At(col).(float64)*2)
+			default:
+			}
+		}
+	})
+
+	if applied.String() != expected {
+		t.Errorf("Expected:\n%v\nGot:\n%v", expected, applied.String())
+	}
+}

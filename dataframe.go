@@ -391,3 +391,13 @@ func (df DataFrame) Filter(condition func(row Row) bool) DataFrame {
 
 	return JoinRows(s)
 }
+
+// Apply applies a function to each row of the DataFrame in-place and returns the modified DataFrame.
+func (df DataFrame) Apply(fn func(row *Row)) DataFrame {
+	for i := range df.nrows {
+		row := Row{parent: &df, index: i}
+		fn(&row)
+	}
+
+	return df
+}

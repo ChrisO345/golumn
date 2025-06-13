@@ -510,6 +510,24 @@ func (s Series) Type() Type {
 	return s.t
 }
 
+// InferType infers the type of the value v and returns the corresponding Type
+func InferType(v any) Type {
+	switch v.(type) {
+	case int:
+		return Int
+	case float64:
+		return Float
+	case bool:
+		return Boolean
+	case string:
+		return String
+	case rune:
+		return Runic
+	default:
+		panic(fmt.Errorf("unsupported type %T", v))
+	}
+}
+
 // IsNumeric returns true if the series is of a numeric type (int, float, bool)
 func (s Series) IsNumeric() bool {
 	return s.t == Int || s.t == Float || s.t == Boolean
