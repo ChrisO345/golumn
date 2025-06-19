@@ -49,7 +49,6 @@ func New(se ...series.Series) DataFrame {
 	}
 
 	// TODO: Currently assuming that column names are unique
-
 	return df
 }
 
@@ -125,11 +124,6 @@ func (df DataFrame) String() string {
 	}
 
 	return sb.String()
-}
-
-// padRight adds spaces to the right of a string to fit the desired width.
-func padRight(s string, width int) string {
-	return s + strings.Repeat(" ", width-len(s))
 }
 
 // padLeft adds spaces to the left of a string to fit the desired width.

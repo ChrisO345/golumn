@@ -1,14 +1,14 @@
 # golumn
 
-`golumn` is a fast, type-safe, and easy-to-use dataframe library in Go. Built for data manipulation, transformation, and analysis, it provides a simple API for creating and manipulating columnar data structures.
+`golumn` is a fast, type-safe, and easy-to-use in-memory dataframe library in Go. Built for data manipulation, transformation, and analysis, it provides a simple API for creating and manipulating columnar data structures.
 
-> Golumn: sturdy columns for structured data.
+> golumn: sturdy columns for in-memory data.
 
 ---
 
 ## Features
 
-- DataFrame and Series data structures
+- Purely in-memory dataframe and series structures
 - Type-safe column operations
 - Immutable-style transformations
 - Fast, portable, and Go-native
