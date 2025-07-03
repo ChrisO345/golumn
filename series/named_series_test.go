@@ -1,23 +1,74 @@
-package series
+package series_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/chriso345/golumn/internal/testutils/assert"
+	"github.com/chriso345/golumn/series"
+)
 
 func TestNewRangedSeries(t *testing.T) {
 	expected := "{Integers [1 2 3 4] int}"
-	s := NewRangedSeries(1, 5, Int, "Integers")
+	s := series.NewRangedSeries(1, 5, series.Int, "Integers")
 
-	if s.String() != expected {
-		t.Errorf("Expected:\n%v\nGot:\n%v", expected, s.String())
-	}
-	// Output: {Integers [1 2 3 4] int}
+	assert.AssertEqual(t, s.Name, "Integers")
+	assert.AssertEqual(t, s.Type(), series.Int)
+	assert.AssertEqual(t, s.Len(), 4)
+	assert.AssertEqual(t, s.String(), expected)
 }
 
-func TestNewEmptySeries(t *testing.T) {
+func TestNewEmptySeries_Int(t *testing.T) {
 	expected := "{Integers [0 0 0 0] int}"
-	s := NewEmptySeries(Int, 4, "Integers")
+	s := series.NewEmptySeries(series.Int, 4, "Integers")
 
-	if s.String() != expected {
-		t.Errorf("Expected:\n%v\nGot:\n%v", expected, s.String())
+	assert.AssertEqual(t, s.Name, "Integers")
+	assert.AssertEqual(t, s.Type(), series.Int)
+	assert.AssertEqual(t, s.Len(), 4)
+	assert.AssertEqual(t, s.String(), expected)
+
+	for i := range s.Len() {
+		assert.AssertEqual(t, s.Val(i), 0)
 	}
 }
 
+func TestNewEmptySeries_String(t *testing.T) {
+	expected := "{Strings [ ] string}"
+	s := series.NewEmptySeries(series.String, 2, "Strings")
+
+	assert.AssertEqual(t, s.Name, "Strings")
+	assert.AssertEqual(t, s.Type(), series.String)
+	assert.AssertEqual(t, s.Len(), 2)
+	assert.AssertEqual(t, s.String(), expected)
+
+	for i := range s.Len() {
+		assert.AssertEqual(t, s.Val(i), "")
+	}
+}
+
+func TestNewEmptySeries_Float(t *testing.T) {
+	expected := "{Floats [0 0] float}"
+	s := series.NewEmptySeries(series.Float, 2, "Floats")
+
+	assert.AssertEqual(t, s.Name, "Floats")
+	assert.AssertEqual(t, s.Type(), series.Float)
+	assert.AssertEqual(t, s.Len(), 2)
+	assert.AssertEqual(t, s.String(), expected)
+
+	for i := range s.Len() {
+		assert.AssertEqual(t, s.Val(i), 0.0)
+	}
+}
+
+func TestNewEmptySeries_Boolean(t *testing.T) {
+	expected := "{Bools [false false] bool}"
+	s := series.NewEmptySeries(series.Boolean, 2, "Bools")
+
+	assert.AssertEqual(t, s.Name, "Bools")
+	assert.AssertEqual(t, s.Type(), series.Boolean)
+	assert.AssertEqual(t, s.Len(), 2)
+	assert.AssertEqual(t, s.String(), expected)
+
+	for i := range s.Len() {
+		assert.AssertEqual(t, s.Val(i), false)
+	}
+}

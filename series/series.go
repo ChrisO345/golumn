@@ -596,3 +596,7 @@ func (s Series) Quantile(q float64) any {
 func (s Series) Median() any {
 	return s.Quantile(0.5)
 }
+
+func (s Series) Empty() bool {
+	return s.Len() == 0
+}

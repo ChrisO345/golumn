@@ -2,6 +2,8 @@ package dfio
 
 import (
 	"testing"
+
+	"github.com/chriso345/golumn/internal/testutils/assert"
 )
 
 func TestFromCSV(t *testing.T) {
@@ -9,17 +11,8 @@ func TestFromCSV(t *testing.T) {
 
 	df := FromCSV("testdata/test.csv")
 
-	if df.String() != expected {
-		t.Errorf("Expected:\n%v\nGot:\n%v", expected, df.String())
-	}
+	r, c := df.Shape()
+	assert.AssertEqual(t, r, 3)
+	assert.AssertEqual(t, c, 3)
+	assert.AssertEqual(t, df.String(), expected)
 }
-
-// func TestParseSQL(t *testing.T) {
-// 	defer func() {
-// 		if r := recover(); r != nil {
-// 			t.Errorf("ParseSQL not implemented")
-// 		}
-// 	}()
-//
-// 	panic("Test not implemented")
-// }

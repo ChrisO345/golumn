@@ -2,7 +2,6 @@ package dfio
 
 import (
 	"encoding/csv"
-	"errors"
 	"fmt"
 	"github.com/chriso345/golumn"
 	"github.com/chriso345/golumn/series"
@@ -94,8 +93,4 @@ func FromCSV(path string, settings ...CSVSettings) *golumn.DataFrame {
 
 	df := golumn.New(se...)
 	return &df
-}
-
-func ParseSQL(sql string) (string, error) {
-	return "", errors.New("not implemented")
 }

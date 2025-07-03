@@ -20,6 +20,11 @@ func (df *DataFrame) RowView(i int) []series.Element {
 	return row
 }
 
+// Position returns the index of the row in the DataFrame.
+func (row Row) Position() int {
+	return row.index
+}
+
 // At returns the value at the specified column.
 func (row Row) At(i int) any {
 	return row.parent.At(row.index, i)
