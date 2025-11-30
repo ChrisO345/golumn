@@ -3,7 +3,7 @@ package dfio
 import (
 	"testing"
 
-	"github.com/chriso345/golumn/internal/testutils/assert"
+	"github.com/chriso345/gore/assert"
 )
 
 func TestFromCSV(t *testing.T) {
@@ -12,7 +12,7 @@ func TestFromCSV(t *testing.T) {
 	df := FromCSV("testdata/test.csv")
 
 	r, c := df.Shape()
-	assert.AssertEqual(t, r, 3)
-	assert.AssertEqual(t, c, 3)
-	assert.AssertEqual(t, df.String(), expected)
+	assert.Equal(t, r, 3)
+	assert.Equal(t, c, 3)
+	assert.Equal(t, df.String(), expected)
 }

@@ -3,7 +3,8 @@ package golumn
 import (
 	"testing"
 
-	"github.com/chriso345/golumn/internal/testutils/assert"
+	"github.com/chriso345/gore/assert"
+
 	"github.com/chriso345/golumn/series"
 )
 
@@ -15,7 +16,7 @@ func TestDataFrame_New_Int(t *testing.T) {
 		series.New([]int{4, 5, 6}, series.Int, "Integers2"),
 	)
 
-	assert.AssertEqual(t, df.String(), expected)
+	assert.Equal(t, df.String(), expected)
 }
 
 func TestDataFrame_New_Float(t *testing.T) {
@@ -26,7 +27,7 @@ func TestDataFrame_New_Float(t *testing.T) {
 		series.New([]float64{4.4, 5.5, 6.6}, series.Float, "Floats2"),
 	)
 
-	assert.AssertEqual(t, df.String(), expected)
+	assert.Equal(t, df.String(), expected)
 }
 
 func TestDataFrame_New_Mixed(t *testing.T) {
@@ -37,7 +38,7 @@ func TestDataFrame_New_Mixed(t *testing.T) {
 		series.New([]float64{4.4, 5.5, 6.6}, series.Float, "Floats"),
 	)
 
-	assert.AssertEqual(t, df.String(), expected)
+	assert.Equal(t, df.String(), expected)
 }
 
 func TestDataFrame_Shape(t *testing.T) {
@@ -48,8 +49,8 @@ func TestDataFrame_Shape(t *testing.T) {
 
 	rows, cols := df.Shape()
 
-	assert.AssertEqual(t, rows, 3)
-	assert.AssertEqual(t, cols, 2)
+	assert.Equal(t, rows, 3)
+	assert.Equal(t, cols, 2)
 }
 
 func TestDataFrame_Slice(t *testing.T) {
@@ -61,7 +62,7 @@ func TestDataFrame_Slice(t *testing.T) {
 	)
 	result := df.Slice(1, 3).String()
 
-	assert.AssertEqual(t, result, expected)
+	assert.Equal(t, result, expected)
 }
 
 func TestDataFrame_Head(t *testing.T) {
@@ -74,7 +75,7 @@ func TestDataFrame_Head(t *testing.T) {
 	)
 	result := df.Head(2).String()
 
-	assert.AssertEqual(t, result, expected)
+	assert.Equal(t, result, expected)
 }
 
 func TestDataFrame_Tail(t *testing.T) {
@@ -87,7 +88,7 @@ func TestDataFrame_Tail(t *testing.T) {
 	)
 	result := df.Tail(2).String()
 
-	assert.AssertEqual(t, result, expected)
+	assert.Equal(t, result, expected)
 }
 
 func TestDataFrame_SetIndex(t *testing.T) {
@@ -98,7 +99,7 @@ func TestDataFrame_SetIndex(t *testing.T) {
 
 	df = df.SetIndex(series.New([]int{7, 8, 9}, series.Int, "Integers2"))
 
-	assert.AssertEqual(t, df.Index().String(), "{Integers2 [7 8 9] int}")
+	assert.Equal(t, df.Index().String(), "{Integers2 [7 8 9] int}")
 }
 
 func TestDataFrame_ResetIndex(t *testing.T) {
@@ -110,7 +111,7 @@ func TestDataFrame_ResetIndex(t *testing.T) {
 	df = df.SetIndex(series.New([]int{7, 8, 9}, series.Int, "Integers2"))
 	df = df.ResetIndex()
 
-	assert.AssertEqual(t, df.Index().String(), "{Index [0 1 2] int}")
+	assert.Equal(t, df.Index().String(), "{Index [0 1 2] int}")
 }
 
 func TestDataFrame_Columns(t *testing.T) {
@@ -124,10 +125,10 @@ func TestDataFrame_Columns(t *testing.T) {
 
 	cols := df.Columns()
 
-	assert.AssertEqual(t, len(cols), 2)
+	assert.Equal(t, len(cols), 2)
 
-	assert.AssertEqual(t, cols[0].String(), a.String())
-	assert.AssertEqual(t, cols[1].String(), b.String())
+	assert.Equal(t, cols[0].String(), a.String())
+	assert.Equal(t, cols[1].String(), b.String())
 }
 
 func TestDataFrame_Index(t *testing.T) {
@@ -136,7 +137,7 @@ func TestDataFrame_Index(t *testing.T) {
 		series.New([]float64{4.4, 5.5, 6.6}, series.Float, "Floats"),
 	)
 
-	assert.AssertEqual(t, df.Index().String(), "{Index [0 1 2] int}")
+	assert.Equal(t, df.Index().String(), "{Index [0 1 2] int}")
 }
 
 func TestDataFrame_Sort(t *testing.T) {
@@ -148,13 +149,13 @@ func TestDataFrame_Sort(t *testing.T) {
 	)
 	df.Sort("Integers")
 
-	assert.AssertEqual(t, df.String(), expected)
+	assert.Equal(t, df.String(), expected)
 
 	expected = "   Integers  Floats\n0         3     4.4\n2         2     5.5\n1         1     6.6"
 
 	df.Sort("Floats")
 
-	assert.AssertEqual(t, df.String(), expected)
+	assert.Equal(t, df.String(), expected)
 }
 
 func TestDataFrame_Order(t *testing.T) {
@@ -166,19 +167,19 @@ func TestDataFrame_Order(t *testing.T) {
 	)
 	df = df.Order(2, 1, 0)
 
-	assert.AssertEqual(t, df.String(), expected)
+	assert.Equal(t, df.String(), expected)
 
 	expected = "   Integers  Floats\n0         1     4.4\n1         2     5.5\n2         3     6.6"
 
 	df = df.Order(2, 1, 0)
 
-	assert.AssertEqual(t, df.String(), expected)
+	assert.Equal(t, df.String(), expected)
 
 	expected = "   Integers  Floats\n2         3     6.6\n0         1     4.4\n1         2     5.5"
 
 	df = df.Order(2, 0, 1)
 
-	assert.AssertEqual(t, df.String(), expected)
+	assert.Equal(t, df.String(), expected)
 }
 
 func TestDataFrame_Append(t *testing.T) {
@@ -191,7 +192,7 @@ func TestDataFrame_Append(t *testing.T) {
 
 	df1.Append(s)
 
-	assert.AssertEqual(t, df1.String(), expected)
+	assert.Equal(t, df1.String(), expected)
 }
 
 func TestDataFrame_Drop(t *testing.T) {
@@ -204,8 +205,8 @@ func TestDataFrame_Drop(t *testing.T) {
 	)
 	s := df.Drop("Integers")
 
-	assert.AssertEqual(t, df.String(), expected)
-	assert.AssertEqual(t, s.String(), seriesExpected)
+	assert.Equal(t, df.String(), expected)
+	assert.Equal(t, s.String(), seriesExpected)
 }
 
 func TestDataFrame_Filter(t *testing.T) {
@@ -221,7 +222,7 @@ func TestDataFrame_Filter(t *testing.T) {
 		return keep < 3
 	})
 
-	assert.AssertEqual(t, filtered.String(), expected)
+	assert.Equal(t, filtered.String(), expected)
 }
 
 func TestDataFrame_Apply(t *testing.T) {
@@ -237,7 +238,7 @@ func TestDataFrame_Apply(t *testing.T) {
 		row.Set("Floats", row.At(1).(float64)*2)
 	})
 
-	assert.AssertEqual(t, applied.String(), expected)
+	assert.Equal(t, applied.String(), expected)
 }
 
 func TestDataFrame_Apply_Dynamic(t *testing.T) {
@@ -255,5 +256,5 @@ func TestDataFrame_Apply_Dynamic(t *testing.T) {
 		row.Set("Strings", []string{"Hello", "World", "Golumn"}[row.Position()])
 	})
 
-	assert.AssertEqual(t, applied.String(), expected)
+	assert.Equal(t, applied.String(), expected)
 }

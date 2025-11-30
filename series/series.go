@@ -423,9 +423,7 @@ func (s Series) Order(positions ...int) Series {
 
 	// Need to copy otherwise positions collection will mutate
 	newPositions := make([]int, s.Len())
-	for i, pos := range positions {
-		newPositions[i] = pos
-	}
+	copy(newPositions, positions)
 
 	for newPos, oldPos := range newPositions {
 		if oldPos == newPos {

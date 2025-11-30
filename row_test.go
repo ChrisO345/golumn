@@ -3,7 +3,8 @@ package golumn
 import (
 	"testing"
 
-	"github.com/chriso345/golumn/internal/testutils/assert"
+	"github.com/chriso345/gore/assert"
+
 	"github.com/chriso345/golumn/series"
 )
 
@@ -15,8 +16,8 @@ func TestRow_RowView(t *testing.T) {
 
 	row := df.RowView(1)
 
-	assert.AssertEqual(t, row[0].Get(), 2)
-	assert.AssertEqual(t, row[1].Get(), "B")
+	assert.Equal(t, row[0].Get(), 2)
+	assert.Equal(t, row[1].Get(), "B")
 }
 
 func TestRow_At(t *testing.T) {
@@ -27,8 +28,8 @@ func TestRow_At(t *testing.T) {
 
 	row := Row{parent: &df, index: 1}
 
-	assert.AssertEqual(t, row.At(0), 2)
-	assert.AssertEqual(t, row.At(1), "B")
+	assert.Equal(t, row.At(0), 2)
+	assert.Equal(t, row.At(1), "B")
 }
 
 func TestRow_Get(t *testing.T) {
@@ -39,8 +40,8 @@ func TestRow_Get(t *testing.T) {
 
 	row := Row{parent: &df, index: 1}
 
-	assert.AssertEqual(t, row.Get("Integers"), 2)
-	assert.AssertEqual(t, row.Get("Strings"), "B")
+	assert.Equal(t, row.Get("Integers"), 2)
+	assert.Equal(t, row.Get("Strings"), "B")
 }
 
 func TestRow_Set(t *testing.T) {
@@ -54,8 +55,8 @@ func TestRow_Set(t *testing.T) {
 	row.Set("Integers", 20)
 	row.Set("Strings", "Z")
 
-	assert.AssertEqual(t, df.At(1, 0), 20)
-	assert.AssertEqual(t, df.At(1, 1), "Z")
+	assert.Equal(t, df.At(1, 0), 20)
+	assert.Equal(t, df.At(1, 1), "Z")
 }
 
 func TestJoinRows(t *testing.T) {
@@ -71,9 +72,9 @@ func TestJoinRows(t *testing.T) {
 	rows := []Row{row1, row2, row3}
 	df2 := JoinRows(rows)
 
-	assert.AssertEqual(t, df2.nrows, 3)
-	assert.AssertEqual(t, df2.ncols, 2)
+	assert.Equal(t, df2.nrows, 3)
+	assert.Equal(t, df2.ncols, 2)
 
-	assert.AssertEqual(t, df2.At(0, 0), 1)
-	assert.AssertEqual(t, df2.At(0, 1), "A")
+	assert.Equal(t, df2.At(0, 0), 1)
+	assert.Equal(t, df2.At(0, 1), "A")
 }

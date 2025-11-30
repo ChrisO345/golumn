@@ -3,33 +3,33 @@ package series
 import (
 	"testing"
 
-	"github.com/chriso345/golumn/internal/testutils/assert"
+	"github.com/chriso345/gore/assert"
 )
 
 func TestNewSeriesInt(t *testing.T) {
 	s := New([]int{1, 2, 3}, Int, "Integers")
-	assert.AssertEqual(t, s.String(), "{Integers [1 2 3] int}")
+	assert.Equal(t, s.String(), "{Integers [1 2 3] int}")
 }
 
 func TestNewSeriesFloat(t *testing.T) {
 	s := New([]float64{1.1, 2.2, 3.3}, Float, "Floats")
-	assert.AssertEqual(t, s.String(), "{Floats [1.1 2.2 3.3] float}")
+	assert.Equal(t, s.String(), "{Floats [1.1 2.2 3.3] float}")
 }
 
 func TestNewSeriesString(t *testing.T) {
 	s := New([]string{"a", "b", "c"}, String, "Strings")
-	assert.AssertEqual(t, s.String(), "{Strings [a b c] string}")
+	assert.Equal(t, s.String(), "{Strings [a b c] string}")
 }
 
 func TestNewSeriesBool(t *testing.T) {
 	s := New([]bool{true, false, true}, Boolean, "Booleans")
-	assert.AssertEqual(t, s.String(), "{Booleans [true false true] bool}")
+	assert.Equal(t, s.String(), "{Booleans [true false true] bool}")
 }
 
 func TestSeries_Copy(t *testing.T) {
 	s := New([]int{1, 2, 3}, Int, "Integers")
 	se := s.Copy()
-	assert.AssertEqual(t, se.String(), s.String())
+	assert.Equal(t, se.String(), s.String())
 }
 
 func TestSeries_ValueCounts(t *testing.T) {
@@ -38,68 +38,68 @@ func TestSeries_ValueCounts(t *testing.T) {
 	unique := s.ValueCounts()
 
 	for k, v := range expected {
-		assert.AssertEqual(t, unique[k], v)
+		assert.Equal(t, unique[k], v)
 	}
 }
 
 func TestSeries_Unique(t *testing.T) {
 	s := New([]int{1, 4, 5, 2}, Int, "Integers")
-	assert.AssertEqual(t, s.Unique(), true)
+	assert.Equal(t, s.Unique(), true)
 
 	s = New([]int{1, 2, 3, 2, 1, 1}, Int, "Integers")
-	assert.AssertEqual(t, s.Unique(), false)
+	assert.Equal(t, s.Unique(), false)
 }
 
 func TestSeries_Name(t *testing.T) {
 	s := New([]int{1, 2, 3}, Int, "Integers")
-	assert.AssertEqual(t, s.Name, "Integers")
+	assert.Equal(t, s.Name, "Integers")
 }
 
 func TestSeries_Empty(t *testing.T) {
 	s := New([]int{}, Int, "Empty")
-	assert.AssertEqual(t, s.Empty(), true)
+	assert.Equal(t, s.Empty(), true)
 
 	s = New([]int{1}, Int, "NotEmpty")
-	assert.AssertEqual(t, s.Empty(), false)
+	assert.Equal(t, s.Empty(), false)
 }
 
 func TestSeries_Len(t *testing.T) {
 	s := New([]int{1, 2, 3}, Int, "Integers")
-	assert.AssertEqual(t, s.Len(), 3)
+	assert.Equal(t, s.Len(), 3)
 }
 
 func TestSeries_Type(t *testing.T) {
 	s := New([]int{1, 2, 3}, Int, "Integers")
-	assert.AssertEqual(t, s.Type(), Int)
+	assert.Equal(t, s.Type(), Int)
 }
 
 func TestSeries_Values(t *testing.T) {
 	values := []int{1, 2, 3}
 	s := New(values, Int, "Integers")
-	assert.AssertEqual(t, len(s.elements.Values()), len(values))
+	assert.Equal(t, len(s.elements.Values()), len(values))
 	for i, v := range s.elements.Values() {
-		assert.AssertEqual(t, v.(int), values[i])
+		assert.Equal(t, v.(int), values[i])
 	}
 }
 
 func TestSeries_Elem(t *testing.T) {
 	s := New([]int{1, 2, 3}, Int, "Integers")
 	e := s.Elem(1)
-	assert.AssertEqual(t, e.Get(), 2)
+	assert.Equal(t, e.Get(), 2)
 
 	s = New([]bool{true, false, true}, Boolean, "Booleans")
 	e = s.Elem(1)
-	assert.AssertEqual(t, e.Get(), false)
+	assert.Equal(t, e.Get(), false)
 }
 
 func TestSeries_Slice(t *testing.T) {
 	s := New([]int{1, 2, 3, 4}, Int, "Integers")
 	slice := s.Slice(1, 3)
-	assert.AssertEqual(t, slice.String(), "{Integers [2 3] int}")
+	assert.Equal(t, slice.String(), "{Integers [2 3] int}")
 }
 
 func TestSeries_Append(t *testing.T) {
 	s := New([]int{1, 2, 3}, Int, "Integers")
 	s.Append(4)
-	assert.AssertEqual(t, s.String(), "{Integers [1 2 3 4] int}")
+	assert.Equal(t, s.String(), "{Integers [1 2 3 4] int}")
 }

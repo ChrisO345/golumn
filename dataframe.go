@@ -2,9 +2,10 @@ package golumn
 
 import (
 	"fmt"
-	"github.com/chriso345/golumn/series"
 	"slices"
 	"strings"
+
+	"github.com/chriso345/golumn/series"
 )
 
 // DataFrame is a collection of series.Series with a shared index.
@@ -20,7 +21,7 @@ type DataFrame struct {
 // New creates a new DataFrame from a collection of series.Series.
 // It has a shared index which defaults to a range of integers.
 func New(se ...series.Series) DataFrame {
-	if se == nil || len(se) == 0 {
+	if len(se) == 0 {
 		panic("empty Series")
 	}
 
@@ -211,7 +212,7 @@ func (df DataFrame) Head(n ...int) DataFrame {
 	if len(n) > 1 {
 		panic("only one argument allowed")
 	}
-	if n == nil || len(n) == 0 {
+	if len(n) == 0 {
 		n = []int{5}
 	}
 
@@ -223,7 +224,7 @@ func (df DataFrame) Tail(n ...int) DataFrame {
 	if len(n) > 1 {
 		panic("only one argument allowed")
 	}
-	if n == nil || len(n) == 0 {
+	if len(n) == 0 {
 		n = []int{5}
 	}
 
@@ -294,9 +295,7 @@ func (df DataFrame) Order(positions ...int) DataFrame {
 
 	// Need to copy otherwise positions collection will mutate
 	newPositions := make([]int, df.nrows)
-	for i, pos := range positions {
-		newPositions[i] = pos
-	}
+	copy(newPositions, positions)
 
 	for newPos, oldPos := range newPositions {
 		if oldPos == newPos {
