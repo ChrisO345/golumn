@@ -144,9 +144,9 @@ func (df DataFrame) Columns() []series.Series {
 
 // Column returns a series.Series of the DataFrame by name.
 func (df DataFrame) Column(name string) *series.Series {
-	for _, s := range df.columns {
-		if s.Name == name {
-			return &s
+	for i := range df.columns {
+		if df.columns[i].Name == name {
+			return &df.columns[i]
 		}
 	}
 	panic(fmt.Errorf("column %v not found", name))

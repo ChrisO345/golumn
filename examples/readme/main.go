@@ -18,10 +18,16 @@ func main() {
 	fmt.Println(df)
 
 	// Add a new column
-	df.Append(series.New([]string{"New York", "Los Angeles", "Chicago"}, series.String, "City"))
+	df.Append(series.New([]string{"New York", "Los Angeles", "New York"}, series.String, "City"))
 
 	// Print the updated DataFrame
 	fmt.Println(df)
+
+	// Perform a group by City
+	grouped := df.GroupBy("City")
+
+	// Print the grouped DataFrame
+	fmt.Println(grouped)
 
 	// Filter where Age is greater than 28
 	filtered := df.Filter(func(row golumn.Row) bool {
