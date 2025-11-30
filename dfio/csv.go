@@ -94,3 +94,52 @@ func FromCSV(path string, settings ...CSVSettings) *golumn.DataFrame {
 	df := golumn.New(se...)
 	return &df
 }
+
+// ToCSV writes a DataFrame to a CSV file at the provided path using the
+// same CSVSettings used by FromCSV. If header is true, column names are
+// written as the first row.
+func ToCSV(path string, df *golumn.DataFrame, settings ...CSVSettings) error {
+	cfg := defaultCSVSettings
+	if len(settings) > 1 {
+		return fmt.Errorf("only one settings struct allowed")
+	}
+	if len(settings) == 1 {
+		cfg = settings[0]
+	}
+
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("error creating file: %w", err)
+	}
+	defer f.Close()
+
+	w := csv.NewWriter(f)
+	w.Comma = cfg.Separator
+
+	// write header
+	if cfg.Header {
+		names := df.Names()
+		if err := w.Write(names); err != nil {
+			return fmt.Errorf("error writing header: %w", err)
+		}
+	}
+
+	// write rows
+	nrows, ncols := df.Shape()
+	for i := range nrows {
+		rec := make([]string, ncols)
+		for j := range ncols {
+			rec[j] = fmt.Sprint(df.At(i, j))
+		}
+		if err := w.Write(rec); err != nil {
+			return fmt.Errorf("error writing record: %w", err)
+		}
+	}
+
+	w.Flush()
+	if err := w.Error(); err != nil {
+		return fmt.Errorf("csv writer error: %w", err)
+	}
+
+	return nil
+}
