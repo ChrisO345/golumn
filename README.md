@@ -38,28 +38,28 @@ import (
 )
 
 func main() {
-	// Create a new DataFrame
-	df := golumn.New(
-		series.New([]string{"Alice", "Bob", "Charlie"}, series.String, "Name"),
-		series.New([]int{25, 30, 35}, series.Int, "Age"),
-	)
+  // Create a new DataFrame
+  df := golumn.New(
+    series.New([]string{"Alice", "Bob", "Charlie"}, series.String, "Name"),
+    series.New([]int{25, 30, 35}, series.Int, "Age"),
+  )
 
-	// Print the DataFrame
-	fmt.Println(df)
+  // Print the DataFrame
+  fmt.Println(df)
 
-	// Add a new column
-	df.Append(series.New([]string{"New York", "Los Angeles", "Chicago"}, series.String, "City"))
+  // Add a new column
+  df.Append(series.New([]string{"New York", "Los Angeles", "Chicago"}, series.String, "City"))
 
-	// Print the updated DataFrame
-	fmt.Println(df)
+  // Print the updated DataFrame
+  fmt.Println(df)
 
-	// Filter where Age is greater than 28
-	filtered := df.Filter(func(row golumn.Row) bool {
-		return row.Get("Age").(int) > 28
-	})
+  // Filter where Age is greater than 28
+  filtered := df.Filter(func(row golumn.Row) bool {
+    return row.Get("Age").(int) > 28
+  })
 
-	// Print the filtered DataFrame
-	fmt.Println(filtered)
+  // Print the filtered DataFrame
+  fmt.Println(filtered)
 }
 ```
 
@@ -79,7 +79,7 @@ func main() {
 * **`golumn/plot`** *(planned)*
   Minimal plotting tools for visual exploration of tabular data (e.g. line charts, histograms).
 
---- 
+---
 
 ## License
 

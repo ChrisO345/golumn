@@ -394,3 +394,325 @@ func (df DataFrame) Apply(fn func(row *Row)) DataFrame {
 
 	return df
 }
+
+// internal join implementation supporting modes: "inner", "left", "right", "full".
+// onL/onR may be column names or "__index__" to join on the DataFrame index.
+func (df DataFrame) joinInternal(other DataFrame, onL, onR, mode string) DataFrame {
+	// getters for join keys
+	var getLeftVal func(int) any
+	var getRightVal func(int) any
+	lIsIndex := onL == "__index__"
+	rIsIndex := onR == "__index__"
+	if lIsIndex {
+		getLeftVal = func(i int) any { return df.index.Val(i) }
+	} else {
+		lcol := df.Column(onL)
+		getLeftVal = func(i int) any { return lcol.Val(i) }
+	}
+	if rIsIndex {
+		getRightVal = func(i int) any { return other.index.Val(i) }
+	} else {
+		rcol := other.Column(onR)
+		getRightVal = func(i int) any { return rcol.Val(i) }
+	}
+
+	leftIdx := make(map[any][]int)
+	rightIdx := make(map[any][]int)
+	for i := 0; i < df.nrows; i++ {
+		leftIdx[getLeftVal(i)] = append(leftIdx[getLeftVal(i)], i)
+	}
+	for i := 0; i < other.nrows; i++ {
+		rightIdx[getRightVal(i)] = append(rightIdx[getRightVal(i)], i)
+	}
+
+	// prepare output columns: left columns then right (skip right join column when it's a column)
+	outCols := make([]series.Series, 0, df.ncols+other.ncols)
+	for _, s := range df.columns {
+		outCols = append(outCols, series.NewEmptySeries(s.Type(), 0, s.Name))
+	}
+	// find right join index if needed
+	rJoinIdx := -1
+	if !rIsIndex {
+		for idx, s := range other.columns {
+			if s.Name == onR {
+				rJoinIdx = idx
+				break
+			}
+		}
+	}
+	// find left join index if needed
+	lJoinIdx := -1
+	if !lIsIndex {
+		for idx, s := range df.columns {
+			if s.Name == onL {
+				lJoinIdx = idx
+				break
+			}
+		}
+	}
+	for _, s := range other.columns {
+		if !rIsIndex && s.Name == onR {
+			continue
+		}
+		name := s.Name
+		for _, ls := range df.columns {
+			if ls.Name == name {
+				name = name + "_y"
+				break
+			}
+		}
+		outCols = append(outCols, series.NewEmptySeries(s.Type(), 0, name))
+	}
+
+	// helper to append a combined row; li or ri may be nil to indicate missing side
+	appendRow := func(li *int, ri *int) {
+		// left values
+		for j, s := range df.columns {
+			if li == nil {
+				// if left side missing but join key exists on right and left has the join column, populate it
+				if lJoinIdx == j && ri != nil && !rIsIndex {
+					outCols[j].Append(getRightVal(*ri))
+				} else {
+					outCols[j].Append(zeroForType(s.Type()))
+				}
+			} else {
+				outCols[j].Append(s.Val(*li))
+			}
+		}
+		// right values
+		outOffset := df.ncols
+		for j, s := range other.columns {
+			if !rIsIndex && j == rJoinIdx {
+				continue
+			}
+			if ri == nil {
+				outCols[outOffset].Append(zeroForType(s.Type()))
+			} else {
+				outCols[outOffset].Append(s.Val(*ri))
+			}
+			outOffset++
+		}
+	}
+
+	seen := make(map[any]bool)
+	// process left-side keys
+	for k, lrows := range leftIdx {
+		rrows, ok := rightIdx[k]
+		if ok {
+			if mode == "right" {
+				// in right mode we will handle matches only when iterating right-only later
+				// but still emit matches for completeness
+			}
+			for _, li := range lrows {
+				for _, ri := range rrows {
+					tmpLi := li
+					tmpRi := ri
+					appendRow(&tmpLi, &tmpRi)
+				}
+			}
+		} else {
+			if mode == "left" || mode == "full" {
+				for _, li := range lrows {
+					tmpLi := li
+					appendRow(&tmpLi, nil)
+				}
+			}
+		}
+		seen[k] = true
+	}
+
+	// right-only keys for right or full
+	if mode == "right" || mode == "full" {
+		for k, rrows := range rightIdx {
+			if seen[k] {
+				continue
+			}
+			for _, ri := range rrows {
+				tmpRi := ri
+				appendRow(nil, &tmpRi)
+			}
+		}
+	}
+
+	return New(outCols...)
+}
+
+// Join performs an inner join with another DataFrame on the specified column name.
+// If column names collide (other than the join column), suffix "_y" is added to the right-hand columns.
+func (df DataFrame) Join(other DataFrame, on string) DataFrame {
+	return df.joinInternal(other, on, on, "inner")
+}
+
+// JoinLeft performs a left outer join on column 'on'.
+func (df DataFrame) JoinLeft(other DataFrame, on string) DataFrame {
+	return df.joinInternal(other, on, on, "left")
+}
+
+// JoinRight performs a right outer join on column 'on'.
+func (df DataFrame) JoinRight(other DataFrame, on string) DataFrame {
+	return df.joinInternal(other, on, on, "right")
+}
+
+// JoinFull performs a full outer join on column 'on'.
+func (df DataFrame) JoinFull(other DataFrame, on string) DataFrame {
+	return df.joinInternal(other, on, on, "full")
+}
+
+// JoinIndex performs an inner join on the DataFrame indices.
+func (df DataFrame) JoinIndex(other DataFrame) DataFrame {
+	return df.joinInternal(other, "__index__", "__index__", "inner")
+}
+
+// JoinLeftIndex performs a left outer join on the DataFrame indices.
+func (df DataFrame) JoinLeftIndex(other DataFrame) DataFrame {
+	return df.joinInternal(other, "__index__", "__index__", "left")
+}
+
+// JoinRightIndex performs a right outer join on the DataFrame indices.
+func (df DataFrame) JoinRightIndex(other DataFrame) DataFrame {
+	return df.joinInternal(other, "__index__", "__index__", "right")
+}
+
+// JoinFullIndex performs a full outer join on the DataFrame indices.
+func (df DataFrame) JoinFullIndex(other DataFrame) DataFrame {
+	return df.joinInternal(other, "__index__", "__index__", "full")
+}
+
+// Pivot creates a pivot table with indexCol as rows, columnsCol as columns and valuesCol as cell values.
+// Aggregation is done by taking the first encountered value for the index/column pair.
+func (df DataFrame) Pivot(indexCol, columnsCol, valuesCol string) DataFrame {
+	idxSeries := df.Column(indexCol)
+	colSeries := df.Column(columnsCol)
+	valSeries := df.Column(valuesCol)
+
+	// collect unique indices and columns in order
+	indexOrder := []any{}
+	indexSeen := make(map[any]bool)
+	colOrder := []any{}
+	colSeen := make(map[any]bool)
+
+	for i := 0; i < df.nrows; i++ {
+		iv := idxSeries.Val(i)
+		cv := colSeries.Val(i)
+		if !indexSeen[iv] {
+			indexOrder = append(indexOrder, iv)
+			indexSeen[iv] = true
+		}
+		if !colSeen[cv] {
+			colOrder = append(colOrder, cv)
+			colSeen[cv] = true
+		}
+	}
+
+	// map of index->col->value
+	cells := make(map[any]map[any]any)
+	for i := 0; i < df.nrows; i++ {
+		iv := idxSeries.Val(i)
+		cv := colSeries.Val(i)
+		if cells[iv] == nil {
+			cells[iv] = make(map[any]any)
+		}
+		if _, ok := cells[iv][cv]; !ok {
+			cells[iv][cv] = valSeries.Val(i)
+		}
+	}
+
+	// prepare output series: index column plus one column per unique column value
+	outCols := make([]series.Series, 0, 1+len(colOrder))
+	// index series: reuse type
+	outCols = append(outCols, series.NewEmptySeries(idxSeries.Type(), 0, indexCol))
+	for _, c := range colOrder {
+		name := fmt.Sprint(c)
+		outCols = append(outCols, series.NewEmptySeries(valSeries.Type(), 0, name))
+	}
+
+	// populate rows
+	for _, iv := range indexOrder {
+		outCols[0].Append(iv)
+		for j, cv := range colOrder {
+			vmap := cells[iv]
+			if vmap == nil {
+				outCols[j+1].Append(zeroForType(valSeries.Type()))
+				continue
+			}
+			if v, ok := vmap[cv]; ok {
+				outCols[j+1].Append(v)
+			} else {
+				outCols[j+1].Append(zeroForType(valSeries.Type()))
+			}
+		}
+	}
+
+	return New(outCols...)
+}
+
+// Unpivot melts the DataFrame from wide to long format. idVars are kept as identifier columns;
+// all other columns become variable/value pairs with names varName and valueName.
+func (df DataFrame) Unpivot(idVars []string, varName, valueName string) DataFrame {
+	idSet := make(map[string]bool)
+	for _, v := range idVars {
+		idSet[v] = true
+	}
+
+	// determine value columns
+	valCols := []series.Series{}
+	for _, s := range df.columns {
+		if idSet[s.Name] {
+			continue
+		}
+		valCols = append(valCols, s)
+	}
+
+	// prepare output: idVars..., varName (string), valueName (type depends on first valCol)
+	outCols := []series.Series{}
+	for _, id := range idVars {
+		outCols = append(outCols, series.NewEmptySeries(df.Column(id).Type(), 0, id))
+	}
+	outCols = append(outCols, series.NewEmptySeries(series.String, 0, varName))
+	// value type: use first valCols if exists else string
+	valType := series.String
+	if len(valCols) > 0 {
+		valType = valCols[0].Type()
+	}
+	outCols = append(outCols, series.NewEmptySeries(valType, 0, valueName))
+
+	for i := 0; i < df.nrows; i++ {
+		// id values
+		idVals := make([]any, len(idVars))
+		for j, id := range idVars {
+			idVals[j] = df.Column(id).Val(i)
+		}
+		for _, vc := range valCols {
+			v := vc.Val(i)
+			// skip placeholder zero values to avoid emitting missing combinations
+			if v == zeroForType(vc.Type()) {
+				continue
+			}
+			// append id values
+			for j := range idVars {
+				outCols[j].Append(idVals[j])
+			}
+			// var name
+			outCols[len(idVars)].Append(vc.Name)
+			// value
+			outCols[len(idVars)+1].Append(v)
+		}
+	}
+
+	return New(outCols...)
+}
+
+func zeroForType(t series.Type) any {
+	switch t {
+	case series.Int:
+		return 0
+	case series.Float:
+		return 0.0
+	case series.Boolean:
+		return false
+	case series.String:
+		return ""
+	default:
+		return nil
+	}
+}

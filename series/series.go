@@ -34,7 +34,7 @@ type intElements []intElement
 
 func (i intElements) Len() int           { return len(i) }
 func (i intElements) Elem(j int) Element { return &i[j] }
-func (i intElements) Values() []any { // TODO: improve the way that this is implemented
+func (i intElements) Values() []any {
 	v := make([]any, len(i))
 	for j, e := range i {
 		v[j] = e.e
@@ -354,64 +354,79 @@ func (s Series) Tail(n int) Series {
 	return s.Slice(s.Len()-n, s.Len())
 }
 
-// Sort sorts the series in place via bubble sort TODO: replace with merge sort later
+// Sort sorts the series in place using merge sort for better performance.
 func (s Series) Sort() {
-	n := s.Len()
-	for i := range n {
-		for j := range n - i - 1 {
-			swap := false
-			switch s.t {
-			case Int:
-				swap = s.Val(j).(int) > s.Val(j+1).(int)
-			case Float:
-				swap = s.Val(j).(float64) > s.Val(j+1).(float64)
-			case Boolean:
-				swap = s.Val(j).(bool) && !s.Val(j+1).(bool)
-			case String:
-				panic("not implemented")
-			case Runic:
-				panic("not implemented")
-			}
-
-			if swap {
-				temp := s.Val(j)
-				s.Elem(j).Set(s.Val(j + 1))
-				s.Elem(j + 1).Set(temp)
-			}
-		}
-	}
+	idx := s.SortedIndex()
+	// reorder according to sorted indices
+	s.Order(idx...)
 }
 
-// SortedIndex returns the indices of the series sorted in ascending order
+// SortedIndex returns the indices of the series sorted in ascending order using merge sort
 func (s Series) SortedIndex() []int {
 	n := s.Len()
 	index := make([]int, n)
 	for i := range n {
 		index[i] = i
 	}
+	if n <= 1 {
+		return index
+	}
 
-	// Bubble Sort TODO: replace with more efficient sort such as merge sort
-	for i := range n {
-		for j := range n - i - 1 {
-			swap := false
-			switch s.t {
-			case Int:
-				swap = s.Val(index[j]).(int) > s.Val(index[j+1]).(int)
-			case Float:
-				swap = s.Val(index[j]).(float64) > s.Val(index[j+1]).(float64)
-			case Boolean:
-				swap = s.Val(index[j]).(bool) && !s.Val(index[j+1]).(bool)
-			case String:
-				panic("not implemented")
-			case Runic:
-				panic("not implemented")
-			}
-			if swap {
-				index[j], index[j+1] = index[j+1], index[j]
-			}
+	// comparator for two element positions
+	less := func(a, b int) bool {
+		switch s.t {
+		case Int:
+			return s.Val(a).(int) < s.Val(b).(int)
+		case Float:
+			return s.Val(a).(float64) < s.Val(b).(float64)
+		case Boolean:
+			// false < true
+			return !s.Val(a).(bool) && s.Val(b).(bool)
+		case String:
+			panic("not implemented")
+		case Runic:
+			panic("not implemented")
+		default:
+			panic("unsupported type")
 		}
 	}
 
+	tmp := make([]int, n)
+	var mergeSort func(lo, hi int)
+	mergeSort = func(lo, hi int) {
+		if hi-lo <= 1 {
+			return
+		}
+		mid := (lo + hi) / 2
+		mergeSort(lo, mid)
+		mergeSort(mid, hi)
+		i, j, k := lo, mid, lo
+		for i < mid && j < hi {
+			if less(index[i], index[j]) {
+				tmp[k] = index[i]
+				i++
+			} else {
+				tmp[k] = index[j]
+				j++
+			}
+			k++
+		}
+		for i < mid {
+			tmp[k] = index[i]
+			i++
+			k++
+		}
+		for j < hi {
+			tmp[k] = index[j]
+			j++
+			k++
+		}
+		for p := lo; p < hi; p++ {
+			index[p] = tmp[p]
+		}
+	}
+
+	mergeSort(0, n)
 	return index
 }
 
