@@ -11,16 +11,20 @@ import (
 
 // CSVSettings defines a struct that contains settings for reading a CSV file, allows for optional settings
 type CSVSettings struct {
-	Header      bool
-	Separator   rune
-	IndexColumn string
-	SkipRows    []int
+	Header           bool
+	Separator        rune
+	IndexColumn      string
+	SkipRows         []int
+	TreatEmptyAsNull bool
+	NullToken        string // if non-empty, token representing null in CSV
 }
 
 var defaultCSVSettings = CSVSettings{
-	Header:      true,
-	Separator:   ',',
-	IndexColumn: "",
+	Header:           true,
+	Separator:        ',',
+	IndexColumn:      "",
+	TreatEmptyAsNull: false,
+	NullToken:        "",
 }
 
 // FromCSV reads a CSV file and returns a DataFrame
@@ -69,15 +73,19 @@ func FromCSV(path string, settings ...CSVSettings) *golumn.DataFrame {
 		se[idx] = series.NewEmptySeries(series.String, 0, val)
 	}
 
-	if !settings[0].Header {
-		for idx, val := range record {
-			se[idx].Append(val)
+	// helper to interpret null token
+	nullToken := settings[0].NullToken
+	for idx, val := range record {
+		if !settings[0].Header {
+			if (settings[0].TreatEmptyAsNull && val == "") || (nullToken != "" && val == nullToken) {
+				se[idx].Append(nil)
+			} else {
+				se[idx].Append(val)
+			}
 		}
 	}
 
-	idx := 0
 	for {
-		idx++
 		record, err = reader.Read()
 		if err == io.EOF {
 			break
@@ -87,7 +95,11 @@ func FromCSV(path string, settings ...CSVSettings) *golumn.DataFrame {
 		}
 
 		for jdx, val := range record {
-			se[jdx].Append(val)
+			if (settings[0].TreatEmptyAsNull && val == "") || (nullToken != "" && val == nullToken) {
+				se[jdx].Append(nil)
+			} else {
+				se[jdx].Append(val)
+			}
 		}
 	}
 
@@ -129,7 +141,19 @@ func ToCSV(path string, df *golumn.DataFrame, settings ...CSVSettings) error {
 	for i := range nrows {
 		rec := make([]string, ncols)
 		for j := range ncols {
-			rec[j] = fmt.Sprint(df.At(i, j))
+			// write null token if value is null
+			col := df.Column(df.Names()[j])
+			if col.IsNull(i) {
+				if cfg.NullToken != "" {
+					rec[j] = cfg.NullToken
+				} else if cfg.TreatEmptyAsNull {
+					rec[j] = ""
+				} else {
+					rec[j] = ""
+				}
+			} else {
+				rec[j] = fmt.Sprint(df.At(i, j))
+			}
 		}
 		if err := w.Write(rec); err != nil {
 			return fmt.Errorf("error writing record: %w", err)

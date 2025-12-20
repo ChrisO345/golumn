@@ -88,8 +88,15 @@ func (df DataFrame) String() string {
 	colWidths := make([]int, df.ncols)
 	for j, col := range df.columns {
 		maxWidth := len(col.Name)
-		for i := range df.nrows {
-			valWidth := len(fmt.Sprint(col.Val(i)))
+		for i := 0; i < df.nrows; i++ {
+			v := col.Val(i)
+			var sval string
+			if v == nil {
+				sval = ""
+			} else {
+				sval = fmt.Sprint(v)
+			}
+			valWidth := len(sval)
 			if valWidth > maxWidth {
 				maxWidth = valWidth
 			}
@@ -107,13 +114,19 @@ func (df DataFrame) String() string {
 	}
 	sb.WriteString("\n")
 
-	for i := range df.nrows {
+	for i := 0; i < df.nrows; i++ {
 		indexStr := fmt.Sprint(df.index.Val(i))
 		sb.WriteString(padLeft(indexStr, maxIndexWidth))
 		sb.WriteString("  ")
 
 		for j, col := range df.columns {
-			val := fmt.Sprint(col.Val(i))
+			v := col.Val(i)
+			var val string
+			if v == nil {
+				val = ""
+			} else {
+				val = fmt.Sprint(v)
+			}
 			sb.WriteString(padLeft(val, colWidths[j]))
 			if j < df.ncols-1 {
 				sb.WriteString("  ")
@@ -387,12 +400,42 @@ func (df DataFrame) Filter(condition func(row Row) bool) DataFrame {
 
 // Apply applies a function to each row of the DataFrame in-place and returns the modified DataFrame.
 func (df DataFrame) Apply(fn func(row *Row)) DataFrame {
-	for i := range df.nrows {
+	for i := 0; i < df.nrows; i++ {
 		row := Row{parent: &df, index: i}
 		fn(&row)
 	}
 
 	return df
+}
+
+// DropNA removes rows that contain any nulls and returns a new DataFrame.
+func (df DataFrame) DropNA() DataFrame {
+	keep := make([]int, 0, df.nrows)
+	for i := 0; i < df.nrows; i++ {
+		hasNull := false
+		for _, col := range df.columns {
+			if col.IsNull(i) {
+				hasNull = true
+				break
+			}
+		}
+		if !hasNull {
+			keep = append(keep, i)
+		}
+	}
+	if len(keep) == 0 {
+		return DataFrame{}
+	}
+	outCols := make([]series.Series, len(df.columns))
+	for ci, c := range df.columns {
+		outCols[ci] = series.NewEmptySeries(c.Type(), 0, c.Name)
+	}
+	for _, i := range keep {
+		for ci := range df.columns {
+			outCols[ci].Append(df.columns[ci].Val(i))
+		}
+	}
+	return New(outCols...)
 }
 
 // internal join implementation supporting modes: "inner", "left", "right", "full".
@@ -419,9 +462,21 @@ func (df DataFrame) joinInternal(other DataFrame, onL, onR, mode string) DataFra
 	leftIdx := make(map[any][]int)
 	rightIdx := make(map[any][]int)
 	for i := 0; i < df.nrows; i++ {
+		// skip rows with null join key
+		if !lIsIndex {
+			if df.Column(onL).IsNull(i) {
+				continue
+			}
+		}
 		leftIdx[getLeftVal(i)] = append(leftIdx[getLeftVal(i)], i)
 	}
 	for i := 0; i < other.nrows; i++ {
+		// skip rows with null join key
+		if !rIsIndex {
+			if other.Column(onR).IsNull(i) {
+				continue
+			}
+		}
 		rightIdx[getRightVal(i)] = append(rightIdx[getRightVal(i)], i)
 	}
 
@@ -473,6 +528,7 @@ func (df DataFrame) joinInternal(other DataFrame, onL, onR, mode string) DataFra
 				if lJoinIdx == j && ri != nil && !rIsIndex {
 					outCols[j].Append(getRightVal(*ri))
 				} else {
+					// append zero placeholder for missing left-side value (preserve old behavior)
 					outCols[j].Append(zeroForType(s.Type()))
 				}
 			} else {
@@ -632,13 +688,13 @@ func (df DataFrame) Pivot(indexCol, columnsCol, valuesCol string) DataFrame {
 		for j, cv := range colOrder {
 			vmap := cells[iv]
 			if vmap == nil {
-				outCols[j+1].Append(zeroForType(valSeries.Type()))
+				outCols[j+1].Append(nil)
 				continue
 			}
 			if v, ok := vmap[cv]; ok {
 				outCols[j+1].Append(v)
 			} else {
-				outCols[j+1].Append(zeroForType(valSeries.Type()))
+				outCols[j+1].Append(nil)
 			}
 		}
 	}
@@ -685,7 +741,7 @@ func (df DataFrame) Unpivot(idVars []string, varName, valueName string) DataFram
 		for _, vc := range valCols {
 			v := vc.Val(i)
 			// skip placeholder zero values to avoid emitting missing combinations
-			if v == zeroForType(vc.Type()) {
+			if vc.IsNull(i) {
 				continue
 			}
 			// append id values

@@ -9,7 +9,9 @@ import (
 type Series struct {
 	Name     string
 	elements Elements
-	t        Type
+	// valid is a compact validity bitset for nullable values. nil means all values are valid.
+	valid *Bitset
+	t     Type
 }
 
 // Elements is an interface that defines the methods that a collection of elements must implement
@@ -37,7 +39,11 @@ func (i intElements) Elem(j int) Element { return &i[j] }
 func (i intElements) Values() []any {
 	v := make([]any, len(i))
 	for j, e := range i {
-		v[j] = e.e
+		if e.IsNA() {
+			v[j] = nil
+		} else {
+			v[j] = e.e
+		}
 	}
 	return v
 }
@@ -74,7 +80,11 @@ func (f floatElements) Elem(j int) Element { return &f[j] }
 func (f floatElements) Values() []any {
 	v := make([]any, len(f))
 	for j, e := range f {
-		v[j] = e.e
+		if e.IsNA() {
+			v[j] = nil
+		} else {
+			v[j] = e.e
+		}
 	}
 	return v
 }
@@ -103,7 +113,11 @@ func (b booleanElements) Elem(j int) Element { return &b[j] }
 func (b booleanElements) Values() []any {
 	v := make([]any, len(b))
 	for j, e := range b {
-		v[j] = e.e
+		if e.IsNA() {
+			v[j] = nil
+		} else {
+			v[j] = e.e
+		}
 	}
 	return v
 }
@@ -137,7 +151,11 @@ func (s stringElements) Elem(j int) Element { return &s[j] }
 func (s stringElements) Values() []any {
 	v := make([]any, len(s))
 	for j, e := range s {
-		v[j] = e.e
+		if e.IsNA() {
+			v[j] = nil
+		} else {
+			v[j] = e.e
+		}
 	}
 	return v
 }
@@ -174,6 +192,12 @@ const (
 
 // New creates a new series from a slice of values of type t, and a name
 func New(v any, t Type, name string) Series {
+	return NewWithValidity(v, nil, t, name)
+}
+
+// NewWithValidity creates a Series and applies an optional validity mask. If mask is nil,
+// validity is inferred from element-level NA indicators; mask entries set to false mark nulls.
+func NewWithValidity(v any, mask []bool, t Type, name string) Series {
 	s := Series{Name: name, t: t}
 
 	allocMemory := func(n int) {
@@ -194,6 +218,12 @@ func New(v any, t Type, name string) Series {
 	if v == nil {
 		allocMemory(1)
 		s.elements.Elem(0).Set(nil)
+		// Create validity bitset only if element is NA
+		if s.Elem(0).IsNA() {
+			b := NewBitset(1)
+			b.Clear(0)
+			s.valid = b
+		}
 		return s
 	}
 
@@ -228,11 +258,46 @@ func New(v any, t Type, name string) Series {
 		panic(fmt.Sprintf("unsupported type, %T", v_))
 	}
 
+	// apply mask if provided
+	if mask != nil {
+		if len(mask) != s.Len() {
+			panic(fmt.Errorf("validity mask length %v does not match values length %v", len(mask), s.Len()))
+		}
+		b := NewBitset(s.Len())
+		for i := 0; i < s.Len(); i++ {
+			if !mask[i] {
+				// mark element as NA
+				s.Elem(i).Set(nil)
+				b.Clear(i)
+			}
+		}
+		s.valid = b
+		return s
+	}
+
+	// Only create a validity bitset if any element is NA; keep nil for fast-path when all valid
+	anyNA := false
+	for i := 0; i < s.Len(); i++ {
+		if s.Elem(i).IsNA() {
+			anyNA = true
+			break
+		}
+	}
+	if anyNA {
+		b := NewBitset(s.Len())
+		for i := 0; i < s.Len(); i++ {
+			if s.Elem(i).IsNA() {
+				b.Clear(i)
+			}
+		}
+		s.valid = b
+	}
+
 	return s
 }
 
 // Copy returns a memory copy of the series
-func (s Series) Copy() Series {
+func (s Series) Copy() Series { // unchanged header, kept for edit context
 	name := s.Name
 	t := s.t
 
@@ -254,11 +319,101 @@ func (s Series) Copy() Series {
 		panic("not implemented")
 	}
 
+	var valid *Bitset
+	if s.valid != nil {
+		valid = s.valid.Clone()
+	}
+
 	return Series{
 		Name:     name,
 		elements: elements,
+		valid:    valid,
 		t:        t,
 	}
+}
+
+// NewWithValidity already defined above; add helpers: FillNA (non-mutating) and MutFillNA (mutating)
+
+// FillNA returns a copy of the series with NA values replaced by value.
+func (s Series) FillNA(value any) Series {
+	res := s.Copy()
+	for i := 0; i < res.Len(); i++ {
+		if res.IsNull(i) {
+			res.Elem(i).Set(value)
+			if res.valid == nil {
+				res.valid = NewBitset(res.Len())
+				// set all existing to 1 except NA
+				for j := 0; j < res.Len(); j++ {
+					if !res.Elem(j).IsNA() {
+						res.valid.Set(j)
+					}
+				}
+			}
+			res.valid.Set(i)
+		}
+	}
+	return res
+}
+
+// MutFillNA mutates the series by replacing NA values with value.
+func (s *Series) MutFillNA(value any) {
+	for i := 0; i < s.Len(); i++ {
+		if s.IsNull(i) {
+			s.Elem(i).Set(value)
+			if s.valid == nil {
+				s.valid = NewBitset(s.Len())
+				for j := 0; j < s.Len(); j++ {
+					if !s.Elem(j).IsNA() {
+						s.valid.Set(j)
+					}
+				}
+			}
+			s.valid.Set(i)
+		}
+	}
+}
+
+// DropNA returns a new Series with NA values removed.
+func (s Series) DropNA() Series {
+	n := s.Len() - s.CountNulls()
+	res := Series{Name: s.Name, t: s.t}
+	// allocate
+	switch s.t {
+	case Int:
+		res.elements = make(intElements, n)
+	case Float:
+		res.elements = make(floatElements, n)
+	case Boolean:
+		res.elements = make(booleanElements, n)
+	case String:
+		res.elements = make(stringElements, n)
+	default:
+		panic("unsupported type")
+	}
+	idx := 0
+	for i := 0; i < s.Len(); i++ {
+		if s.IsNull(i) {
+			continue
+		}
+		res.Elem(idx).Set(s.Val(i))
+		idx++
+	}
+	return res
+}
+
+// CopyWithValidity returns a copy; if copyValues is false, values are zeroed but validity mask is preserved.
+func (s Series) CopyWithValidity(copyValues bool) Series {
+	res := s.Copy()
+	if !copyValues {
+		// zero values but clone validity
+		for i := 0; i < res.Len(); i++ {
+			res.Elem(i).Set(zeroForType(res.t))
+		}
+		if s.valid != nil {
+			res.valid = s.valid.Clone()
+		}
+	}
+	return res
 }
 
 // Len returns the number of elements in the series
@@ -266,19 +421,72 @@ func (s Series) Len() int {
 	return s.elements.Len()
 }
 
+// zeroForType returns the zero placeholder value for a given series.Type
+func zeroForType(t Type) any {
+	switch t {
+	case Int:
+		return 0
+	case Float:
+		return 0.0
+	case Boolean:
+		return false
+	case String:
+		return ""
+	default:
+		return nil
+	}
+}
+
 // Append appends a value to the series
 func (s *Series) Append(v any) {
-	switch s.t {
+	// append using existing element Set semantics so NA handling is preserved
+	swt := s.t
+	// grow elements
+	switch swt {
 	case Int:
-		s.elements = append(s.elements.(intElements), intElement{e: v.(int)})
+		el := intElement{}
+		el.Set(v)
+		s.elements = append(s.elements.(intElements), el)
 	case Float:
-		s.elements = append(s.elements.(floatElements), floatElement{e: v.(float64)})
+		el := floatElement{}
+		el.Set(v)
+		s.elements = append(s.elements.(floatElements), el)
 	case Boolean:
-		s.elements = append(s.elements.(booleanElements), booleanElement{e: v.(bool)})
+		el := booleanElement{}
+		el.Set(v)
+		s.elements = append(s.elements.(booleanElements), el)
 	case String:
-		s.elements = append(s.elements.(stringElements), stringElement{e: v.(string)})
+		el := stringElement{}
+		el.Set(v)
+		s.elements = append(s.elements.(stringElements), el)
 	case Runic:
 		panic("not implemented")
+	}
+
+	// maintain validity bitset: if s.valid is nil and no NA present, keep nil (fast path).
+	// if any NA present, create or rebuild bitset to reflect current elements.
+	if s.valid == nil {
+		// detect if any NA exists now
+		for i := 0; i < s.Len(); i++ {
+			if s.Elem(i).IsNA() {
+				b := NewBitset(s.Len())
+				for j := 0; j < s.Len(); j++ {
+					if s.Elem(j).IsNA() {
+						b.Clear(j)
+					}
+				}
+				s.valid = b
+				break
+			}
+		}
+	} else {
+		// s.valid exists; ensure capacity and set/clear last bit accordingly
+		s.valid.EnsureCapacity(s.Len())
+		if s.Elem(s.Len() - 1).IsNA() {
+			s.valid.Clear(s.Len() - 1)
+		} else {
+			s.valid.Set(s.Len() - 1)
+		}
 	}
 }
 
@@ -287,8 +495,11 @@ func (s Series) String() string {
 	return fmt.Sprintf("{%v %v %v}", s.Name, s.elements.Values(), s.t)
 }
 
-// Val returns the value of the element at index i
+// Val returns the value of the element at index i; returns nil for NA/null values.
 func (s Series) Val(i int) any {
+	if s.IsNull(i) {
+		return nil
+	}
 	return s.elements.Elem(i).Get()
 }
 
@@ -299,7 +510,7 @@ func (s Series) Elem(i int) Element {
 
 // HasNa returns true if the series has any NA values
 func (s Series) HasNa() bool {
-	for i := range s.Len() {
+	for i := 0; i < s.Len(); i++ {
 		if s.Elem(i).IsNA() {
 			return true
 		}
@@ -341,6 +552,39 @@ func (s Series) Slice(a, b int) Series {
 	for i := a; i < b; i++ {
 		se.Elem(i - a).Set(s.Val(i))
 	}
+
+	// slice validity
+	if s.valid == nil {
+		// if original had no bitset but some elements might be NA flagged at element level
+		anyNA := false
+		for i := a; i < b; i++ {
+			if s.Elem(i).IsNA() {
+				anyNA = true
+				break
+			}
+		}
+		if anyNA {
+			bset := NewBitset(n)
+			for i := range n {
+				if se.Elem(i).IsNA() {
+					bset.Clear(i)
+				}
+			}
+			se.valid = bset
+		}
+	} else {
+		// clone relevant range
+		bset := NewBitset(n)
+		for i := range n {
+			if s.valid.Get(a + i) {
+				bset.Set(i)
+			} else {
+				bset.Clear(i)
+			}
+		}
+		se.valid = bset
+	}
+
 	return se
 }
 
@@ -372,8 +616,18 @@ func (s Series) SortedIndex() []int {
 		return index
 	}
 
-	// comparator for two element positions
+	// comparator for two element positions; NULLs are considered greater (sorted to end)
 	less := func(a, b int) bool {
+		// handle nulls
+		if s.IsNull(a) {
+			if s.IsNull(b) {
+				return false
+			}
+			return false // a is null, b not -> a > b
+		}
+		if s.IsNull(b) {
+			return true // a not null, b null -> a < b
+		}
 		switch s.t {
 		case Int:
 			return s.Val(a).(int) < s.Val(b).(int)
@@ -383,7 +637,7 @@ func (s Series) SortedIndex() []int {
 			// false < true
 			return !s.Val(a).(bool) && s.Val(b).(bool)
 		case String:
-			panic("not implemented")
+			return fmt.Sprint(s.Val(a)) < fmt.Sprint(s.Val(b))
 		case Runic:
 			panic("not implemented")
 		default:
@@ -464,7 +718,7 @@ func (s Series) Order(positions ...int) Series {
 // Count returns the number of occurrences of the value v in the series
 func (s Series) Count(v any) int {
 	count := 0
-	for i := range s.Len() {
+	for i := 0; i < s.Len(); i++ {
 		if s.Val(i) == v {
 			count++
 		}
@@ -475,7 +729,7 @@ func (s Series) Count(v any) int {
 // Unique returns the true if there are no duplicates in the series
 func (s Series) Unique() bool {
 	seen := make(map[any]struct{})
-	for i := range s.Len() {
+	for i := 0; i < s.Len(); i++ {
 		if _, ok := seen[s.Val(i)]; ok {
 			return false
 		}
@@ -502,7 +756,7 @@ func (s Series) Homogeneous() bool {
 // NUnique returns the number of unique values in the series
 func (s Series) NUnique() int {
 	seen := make(map[any]struct{})
-	for i := range s.Len() {
+	for i := 0; i < s.Len(); i++ {
 		seen[s.Val(i)] = struct{}{}
 	}
 	return len(seen)
@@ -511,7 +765,7 @@ func (s Series) NUnique() int {
 // ValueCounts returns a slice of the unique values in the series
 func (s Series) ValueCounts() map[any]int {
 	seen := make(map[any]int)
-	for i := range s.Len() {
+	for i := 0; i < s.Len(); i++ {
 		seen[s.Val(i)] = seen[s.Val(i)] + 1
 	}
 
@@ -521,6 +775,47 @@ func (s Series) ValueCounts() map[any]int {
 // Type returns the type of the series
 func (s Series) Type() Type {
 	return s.t
+}
+
+// IsNull returns true if the element at index i is NA/null.
+func (s Series) IsNull(i int) bool {
+	if s.valid != nil {
+		return !s.valid.Get(i)
+	}
+	return s.Elem(i).IsNA()
+}
+
+// IsValid returns true if the element at index i is not NA/null.
+func (s Series) IsValid(i int) bool {
+	return !s.IsNull(i)
+}
+
+// CountNulls returns the number of NA/null values in the series.
+func (s Series) CountNulls() int {
+	if s.valid != nil {
+		return s.Len() - s.valid.Count()
+	}
+	count := 0
+	for i := 0; i < s.Len(); i++ {
+		if s.Elem(i).IsNA() {
+			count++
+		}
+	}
+	return count
+}
+
+// AnyNull returns true if any element in the series is null.
+func (s Series) AnyNull() bool {
+	return s.CountNulls() > 0
+}
+
+// NullMask returns a slice of booleans where true indicates a null value.
+func (s Series) NullMask() []bool {
+	m := make([]bool, s.Len())
+	for i := 0; i < s.Len(); i++ {
+		m[i] = s.IsNull(i)
+	}
+	return m
 }
 
 // InferType infers the type of the value v and returns the corresponding Type
@@ -573,7 +868,7 @@ func (s Series) Mean() float64 {
 	}
 
 	var sum float64
-	for i := range s.Len() {
+	for i := 0; i < s.Len(); i++ {
 		switch s.t {
 		case Int:
 			sum += float64(s.Val(i).(int))

@@ -224,3 +224,23 @@ func TestInferTypeAndPanic(t *testing.T) {
 	}()
 	_ = InferType(struct{}{})
 }
+
+func TestSeriesNullHelpers(t *testing.T) {
+	s := New([]int{1, 2, 3}, Int, "A")
+	// set middle to NA
+	s.Elem(1).Set(nil)
+	// ensure bitset built
+	_ = s.Copy()
+	assert.Equal(t, s.IsNull(1), true)
+	assert.Equal(t, s.CountNulls(), 1)
+	b := s.FillNA(9)
+	assert.Equal(t, b.IsNull(1), false)
+	assert.Equal(t, b.Val(1), 9)
+
+	// DropNA
+	s2 := New([]int{1, 2, 3}, Int, "B")
+	s2.Elem(0).Set(nil)
+	d := s2.DropNA()
+	assert.Equal(t, d.Len(), 2)
+	assert.Equal(t, d.Val(0), 2)
+}

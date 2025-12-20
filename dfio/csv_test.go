@@ -54,3 +54,23 @@ func TestWriteCSV(t *testing.T) {
 	assert.Equal(t, c, 3)
 	assert.Equal(t, df.String(), df2.String())
 }
+
+func TestCSVNulls(t *testing.T) {
+	f, err := os.CreateTemp(".", "csv_null_")
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := f.Name()
+	f.WriteString("a,b\n1,\n2,NA\n3,3\n")
+	f.Close()
+	defer os.Remove(name)
+
+	cfg := CSVSettings{Header: true, Separator: ',', TreatEmptyAsNull: true, NullToken: "NA"}
+	df := FromCSV(name, cfg)
+	r, c := df.Shape()
+	assert.Equal(t, r, 3)
+	assert.Equal(t, c, 2)
+	// b column nulls: row0 empty -> null, row1 token NA -> null
+	col := df.Columns()[1]
+	assert.Equal(t, col.CountNulls(), 2)
+}

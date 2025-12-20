@@ -50,8 +50,8 @@ func FromJSON(path string) *golumn.DataFrame {
 	for _, obj := range arr {
 		for j, name := range names {
 			v, ok := obj[name]
-			if !ok {
-				se[j].Append("")
+			if !ok || v == nil {
+				se[j].Append(nil)
 				continue
 			}
 			se[j].Append(fmt.Sprint(v))

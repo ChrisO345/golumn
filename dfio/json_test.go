@@ -52,3 +52,21 @@ func TestWriteJSON(t *testing.T) {
 		}
 	}
 }
+
+func TestJSONNulls(t *testing.T) {
+	f, err := os.CreateTemp(".", "json_null_")
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := f.Name()
+	f.WriteString("[{\"a\":1, \"b\":null}, {\"a\":2}, {\"a\":3, \"b\":3}]")
+	f.Close()
+	defer os.Remove(name)
+
+	df := FromJSON(name)
+	r, c := df.Shape()
+	assert.Equal(t, r, 3)
+	assert.Equal(t, c, 2)
+	col := df.Columns()[1]
+	assert.Equal(t, col.CountNulls(), 2)
+}
